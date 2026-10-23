@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import socket
+import ssl
 import sys
 
 
@@ -20,6 +21,8 @@ def main() -> int:
     ap.add_argument("--boundary", default="C" * 10)
     ap.add_argument("--chunk", type=int, default=65536)
     ap.add_argument("--timeout", type=float, default=120.0)
+    ap.add_argument("--https", action="store_true",
+                    help="use HTTPS and ignore certificate validation errors")
     ap.add_argument("--save-response", default="")
     args = ap.parse_args()
 
@@ -39,6 +42,11 @@ def main() -> int:
     resp = bytearray()
     try:
         s = socket.create_connection((args.host, args.port), timeout=args.timeout)
+        if args.https:
+            context = ssl.create_default_context()
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+            s = context.wrap_socket(s, server_hostname=args.host)
         s.settimeout(args.timeout)
         try:
             s.sendall(out)
@@ -51,7 +59,9 @@ def main() -> int:
             pass
         s.close()
     except OSError as exc:
-        print("connect_error %r" % (exc,), file=sys.stderr)
+        print("connect_error %s errno=%s" %
+              (type(exc).__name__, getattr(exc, "errno", None)),
+              file=sys.stderr)
         return 2
 
     if args.save_response:

