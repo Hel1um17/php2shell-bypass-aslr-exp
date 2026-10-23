@@ -24,8 +24,8 @@ PHP 的约束下，一条命令拿到 RCE：
 ## 快速开始（官方 php.ini-production / display_errors=Off / 128M）
 
 ```bash
-git clone https://github.com/Hel1um17/php2shell
-cd php2shell
+git https://github.com/Hel1um17/php2shell-bypass-aslr-exp
+cd php2shell-bypass-aslr-exp
 
 # 1) 起目标：stock 官方镜像；容器里只把官方 php.ini-production 复制成 php.ini
 ./pure/run_pure.sh
