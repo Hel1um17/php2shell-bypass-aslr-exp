@@ -1,6 +1,12 @@
-# php2shell - 官方环境 无需display_errors，不修改memory_limit
+# 写在前面
 
-中文 | [English](readme_en.md)
+本仓库 Fork 自 [9bie/php2shell-bypass-aslr-exp](https://github.com/9bie/php2shell-bypass-aslr-exp)，**主要新增了自定义目标 IP (`--host`) 的功能**，以便在跨主机（如宿主机打虚拟机靶场）环境下进行测试。核心漏洞利用链完全基于 9bie 师傅的代码，感谢9bie师傅
+
+> **免责声明**：本项目仅供网络安全学习、漏洞原理研究与**已授权的环境测试**使用。请勿用于任何非法用途，否则后果自负。
+
+---
+
+# php2shell - 官方环境 无需display_errors，不修改memory_limit
 
 **官方 prefork 配置（MaxRequestWorkers=150）下**，在完全远程、只用 HTTP、目标页面只有 `<?php echo "OK\n"; ?>`、不写目标侧
 PHP 的约束下，一条命令拿到 RCE：
@@ -18,8 +24,8 @@ PHP 的约束下，一条命令拿到 RCE：
 ## 快速开始（官方 php.ini-production / display_errors=Off / 128M）
 
 ```bash
-git clone https://github.com/9bie/php2shell-bypass-aslr-exp.git
-cd php2shell-bypass-aslr-exp
+git clone https://github.com/Hel1um17/php2shell
+cd php2shell
 
 # 1) 起目标：stock 官方镜像；容器里只把官方 php.ini-production 复制成 php.ini
 ./pure/run_pure.sh
@@ -30,6 +36,7 @@ cd php2shell-bypass-aslr-exp
 # workers: official (run exploit with --workers 150)
 
 # 2) 一条命令：A1 -> B1 泄漏 -> A2 -> B2 -> id
+# 默认IP为127.0.0.1
 python3 exploit.py --port 18110
 #       pinned 150/150 workers (149 holders)
 # [try 1] A1: END-cleanup send_cookie OOM
@@ -161,3 +168,7 @@ ASLR 每次容器启动会变，链上两次泄漏会自己算出来。
   没有自定义 ini、没有 `display_errors=On` 依赖、没有目标侧文件、
   没有 `session_start()`、交付路径不用 gdb。
 - 仅用于授权环境中的漏洞研究与复现。
+
+# 最后
+
+再次感谢9bie师傅的代码
