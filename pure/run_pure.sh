@@ -59,7 +59,7 @@ mkdir -p "$R/out"
 
 # shellcheck disable=SC2086
 $DOCKER run -d --name "$NAME" $CAP $MOUNT \
-  -p "127.0.0.1:$PORT:80" \
+  -p "0.0.0.0:$PORT:80" \
   -v "$R/docker/www:/var/www/html:ro" \
   -v "$R/out:/out" \
   "$IMAGE" /bin/sh -c \
@@ -68,12 +68,12 @@ $DOCKER run -d --name "$NAME" $CAP $MOUNT \
    exec apache2-foreground' >/dev/null
 
 for _ in $(seq 1 40); do
-  if curl -s -m 2 "http://127.0.0.1:$PORT/index.php" >/dev/null 2>&1; then
+  if curl -s -m 2 "http://0.0.0.0:$PORT/index.php" >/dev/null 2>&1; then
     break
   fi
   sleep 0.5
 done
-echo "target: $(curl -s -m 3 "http://127.0.0.1:$PORT/index.php")"
+echo "target: $(curl -s -m 3 "http://0.0.0.0:$PORT/index.php")"
 $DOCKER exec "$NAME" php -v | head -1
 $DOCKER exec "$NAME" php -i 2>/dev/null | \
   grep -E '^display_errors|^display_startup_errors|^memory_limit|^post_max_size|^output_buffering|^session.sid_length|^session.use_strict_mode|^session.save_path|^max_file_uploads|^max_input_vars|^max_multipart_body_parts' | head -20
