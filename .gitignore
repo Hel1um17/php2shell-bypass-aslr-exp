@@ -10,5 +10,9 @@ src/php-8.4.26/
 out/*
 !out/.gitkeep
 
-# Local evidence logs (historical tracked logs are left as-is)
-/pure/evidence/*.log
+# Local backups and scratch command files (keep them out of the repo)
+*.bak
+/cmd.txt
+
+# PHP source tarball (fetch it per archive/legacy-8m/NOTES.md when calibrating)
+src/*.tar.gz

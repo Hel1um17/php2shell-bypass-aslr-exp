@@ -250,9 +250,6 @@ LEAK_SPEC = "G:511:0x137" * 14 + "G:400:0x137" + "G:511:0x137" + "X:900"
 
 ### 6.2 窗口解析（`exploit.py::parse_leak`）
 
-`exploit.py` 默认 `--arch auto`：按泄漏窗口里重复指针的高位自动选择
-x86_64（`0x7f…`）或 aarch64（`0xffff…`），显式 `--arch` 可覆盖。
-
 800KB 解码后按 qword 扫 0x7f… 指针，按 `& ~0x1fffff`（2MiB）聚类：
 
 ```
@@ -396,7 +393,6 @@ print(hex(Counter(qs).most_common(1)[0][0] - 0x65EB60))  # libphp
 | 文件 | 用途 |
 |---|---|
 | `pure/run_pure.sh` | 起独立容器 `p2s-pure-18110`：默认 stock 官方 `php:8.4.26-apache` + 官方 `php.ini-production` + 官方 prefork（150 workers）；`--single` 单 worker；`--dbg` 带符号镜像 |
-| `pure/docker/` | pure 链自己的 Docker 资产：`www/index.php`（目标页）和非官方单 worker 覆盖 `apache-single-worker.conf`；根目录 `docker/` 只保留指向这里的兼容软链 |
 | `pure/chunked_send.py` | chunked 发送 multipart body（绕过 post_max_size） |
 | `pure/mk_a1.py` | A1 body（OOM 形状；支持 query 由 `--path` 给） |
 | `pure/mk_leak_b.py` | B body：`A:<page>` 311-page forge、`G:<pages>:<page>` 全块 forge、`F/S` flood、`X:n` 数组字段 |

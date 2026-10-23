@@ -291,7 +291,7 @@ libphp 泄漏原始响应：`logs/libphp_leak_20261021.resp`。
    > 的 OOM 打进 `php_session_send_cookie→php_url_encode`（bin 128 空 +
    > free page 耗尽），并在 B 侧穿过悬空 `PS(mod_data)`、用悬空 id 调
    > `send_cookie`；剩余是悬空 id 块的 forge 标定。详见
-   > [DISPLAY_ERRORS_OFF.md](/Users/my/php2shell/DISPLAY_ERRORS_OFF.md)。
+   > [DISPLAY_ERRORS_OFF.md](../../DISPLAY_ERRORS_OFF.md)。
 2. 依赖 `session.use_cookies=1`（默认）、`session.use_strict_mode=0`
    （默认）、`max_input_vars=1000`（默认）、`memory_limit=8M`（lab）。
 3. 所有 chunk/模块内偏移绑定本 PHP 8.4.26 构建与请求形状：
